@@ -19,7 +19,9 @@ import com.securevault.onepass.R;
 import com.securevault.onepass.data.DatabaseHelper;
 import com.securevault.onepass.data.PasswordItem;
 import com.securevault.onepass.databinding.ActivityDetailsBinding;
+import com.securevault.onepass.utils.BiometricHelper;
 import com.securevault.onepass.utils.ClipboardHelper;
+import com.securevault.onepass.utils.SecureEncryptionHelper;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -27,13 +29,16 @@ import java.util.Locale;
 
 public class DetailsActivity extends AppCompatActivity {
     private ActivityDetailsBinding binding;
+    private DatabaseHelper databaseHelper;
+    private BiometricHelper biometricHelper;
+    private SecureEncryptionHelper secureEncryptionHelper;
     private boolean isPasswordHide = true;
     private int id;
     private String title;
     private String date;
     private String link;
     private String username;
-    private String password;
+    private int length;
 
     private final ActivityResultLauncher<Intent> detailsLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -58,6 +63,9 @@ public class DetailsActivity extends AppCompatActivity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
 
         setUpUserInterface();
+        databaseHelper = DatabaseHelper.getInstance(this);
+        biometricHelper = new BiometricHelper(this);
+        secureEncryptionHelper = new SecureEncryptionHelper(this);
 
         binding.passwordToggle.setOnClickListener(v -> showOrHidePassword());
         binding.copyIcon.setOnClickListener(v -> copyPassword());
@@ -67,20 +75,48 @@ public class DetailsActivity extends AppCompatActivity {
 
     private void showOrHidePassword() {
         if (isPasswordHide) {
-            binding.passwordToggle.setImageResource(R.drawable.ic_eye_open);
-            binding.passwordText.setText(password);
-            binding.passwordText.setTransformationMethod(null);
-            isPasswordHide = false;
+            biometricHelper.setBiometricCallback(new BiometricHelper.BiometricCallback() {
+                @Override
+                public void onSuccess() {
+                    String encryptedPassword = databaseHelper.passwordDao().retrievePasswordById(id);
+                    String decryptedPassword = secureEncryptionHelper.decrypt(encryptedPassword);
+
+                    binding.passwordToggle.setImageResource(R.drawable.ic_eye_open);
+                    binding.passwordText.setText(decryptedPassword);
+                    binding.passwordText.setTransformationMethod(null);
+                    isPasswordHide = false;
+                }
+
+                @Override
+                public void onFailed() {
+
+                }
+            });
+            biometricHelper.checkAndShowBiometricPrompt();
         } else {
             binding.passwordToggle.setImageResource(R.drawable.ic_eye_close);
+            binding.passwordText.setText(emptyPassword(length));
             binding.passwordText.setTransformationMethod(PasswordTransformationMethod.getInstance());
             isPasswordHide = true;
         }
     }
 
     private void copyPassword() {
-        ClipboardHelper.copyToClipboard(this, binding.passwordText.getText().toString());
-        Toast.makeText(this, "Copied", Toast.LENGTH_SHORT).show();
+        biometricHelper.setBiometricCallback(new BiometricHelper.BiometricCallback() {
+            @Override
+            public void onSuccess() {
+                String encryptedPassword = databaseHelper.passwordDao().retrievePasswordById(id);
+                String decryptedPassword = secureEncryptionHelper.decrypt(encryptedPassword);
+                ClipboardHelper.copyToClipboard(getApplicationContext(), decryptedPassword);
+                Toast.makeText(getApplicationContext(), "Copied", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailed() {
+
+            }
+        });
+        biometricHelper.checkAndShowBiometricPrompt();
     }
 
     private void updatePassword() {
@@ -90,7 +126,11 @@ public class DetailsActivity extends AppCompatActivity {
         intent.putExtra("created_date", getOriginalDate(date));
         intent.putExtra("url", link);
         intent.putExtra("username", username);
-        intent.putExtra("encrypted_password", password);
+
+        String encryptedPassword = databaseHelper.passwordDao().retrievePasswordById(id);
+        String decryptedPassword = secureEncryptionHelper.decrypt(encryptedPassword);
+
+        intent.putExtra("encrypted_password", decryptedPassword);
         detailsLauncher.launch(intent);
     }
 
@@ -102,33 +142,41 @@ public class DetailsActivity extends AppCompatActivity {
             return;
         }
 
-        DatabaseHelper databaseHelper = DatabaseHelper.getInstance(this);
-        databaseHelper.passwordDao().deleteRecord(id);
-        Toast.makeText(this, "Password successfully deleted!", Toast.LENGTH_SHORT).show();
-        setResult(Activity.RESULT_OK);
-        finish();
+        biometricHelper.setBiometricCallback(new BiometricHelper.BiometricCallback() {
+            @Override
+            public void onSuccess() {
+                databaseHelper.passwordDao().deleteRecord(id);
+                Toast.makeText(getApplicationContext(), "Password successfully deleted!", Toast.LENGTH_SHORT).show();
+                setResult(Activity.RESULT_OK);
+                finish();
+            }
+
+            @Override
+            public void onFailed() {
+
+            }
+        });
+        biometricHelper.checkAndShowBiometricPrompt();
     }
 
     private void refreshDetails() {
-        DatabaseHelper databaseHelper = DatabaseHelper.getInstance(this);
         PasswordItem passwordItem = databaseHelper.passwordDao().retrieveRecordById(id);
 
         title = passwordItem.getPasswordName();
         link = passwordItem.getUrl();
         username = passwordItem.getUsername();
-        password = passwordItem.getEncryptedPassword();
+        length = passwordItem.getPasswordLength();
         date = getFormattedDate(passwordItem.getCreatedDate().toString());
 
         binding.screenTitle.setText(title);
         binding.linkText.setText(link.isEmpty() ? "null" : link);
         binding.userText.setText(username);
-        binding.passwordText.setText(password);
+        binding.passwordText.setText(emptyPassword(length));
         binding.dateText.setText(date);
 
         binding.passwordText.setTransformationMethod(PasswordTransformationMethod.getInstance());
         isPasswordHide = true;
     }
-
 
     private void setUpUserInterface() {
         Intent intent = getIntent();
@@ -137,14 +185,22 @@ public class DetailsActivity extends AppCompatActivity {
         date = getFormattedDate(intent.getStringExtra("created_date"));
         link = intent.getStringExtra("url");
         username = intent.getStringExtra("username");
-        password = intent.getStringExtra("encrypted_password");
+        length = intent.getIntExtra("password_length", -1);
 
         binding.screenTitle.setText(title);
         binding.dateText.setText(date);
         binding.linkText.setText(link.isEmpty() ? "null" : link);
         binding.userText.setText(username);
-        binding.passwordText.setText(password);
+        binding.passwordText.setText(emptyPassword(length));
         binding.passwordText.setTransformationMethod(PasswordTransformationMethod.getInstance());
+    }
+
+    private String emptyPassword(int length) {
+        StringBuilder password = new StringBuilder();
+        for (int i = 1; i <= length; i++) {
+            password.append("*");
+        }
+        return password.toString();
     }
 
     private String getFormattedDate(String date) {

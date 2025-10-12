@@ -19,24 +19,28 @@ public class PasswordItem {
     private String username;
     @ColumnInfo(name = "encrypted_password")
     private String encryptedPassword;
+    @ColumnInfo(name = "password_length")
+    private int passwordLength;
     @ColumnInfo(name = "created_date")
     private LocalDate createdDate;
 
-    public PasswordItem(int id, String passwordName, String url, String username, String encryptedPassword, LocalDate createdDate) {
+    public PasswordItem(int id, String passwordName, String url, String username, String encryptedPassword, int passwordLength, LocalDate createdDate) {
         this.id = id;
         this.passwordName = passwordName;
         this.url = url;
         this.username = username;
         this.encryptedPassword = encryptedPassword;
+        this.passwordLength = passwordLength;
         this.createdDate = createdDate;
     }
 
     @Ignore
-    public PasswordItem(String passwordName, String url, String username, String encryptedPassword, LocalDate createdDate) {
+    public PasswordItem(String passwordName, String url, String username, String encryptedPassword, int passwordLength, LocalDate createdDate) {
         this.passwordName = passwordName;
         this.url = url;
         this.username = username;
         this.encryptedPassword = encryptedPassword;
+        this.passwordLength = passwordLength;
         this.createdDate = createdDate;
     }
 
@@ -58,6 +62,10 @@ public class PasswordItem {
 
     public String getEncryptedPassword() {
         return encryptedPassword;
+    }
+
+    public int getPasswordLength() {
+        return passwordLength;
     }
 
     public LocalDate getCreatedDate() {

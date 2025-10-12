@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         setUpNavigation();
+        unlockWithBiometric();
     }
 
     private void setUpNavigation() {
@@ -47,13 +48,18 @@ public class MainActivity extends AppCompatActivity {
         boolean check = preferenceHelper.getBiometricMode(PreferenceHelper.KEY_BIOMETRIC);
         if (check) {
             BiometricHelper biometricHelper = new BiometricHelper(this);
+            biometricHelper.setBiometricCallback(new BiometricHelper.BiometricCallback() {
+                @Override
+                public void onSuccess() {
+
+                }
+
+                @Override
+                public void onFailed() {
+
+                }
+            });
             biometricHelper.checkAndShowBiometricPrompt();
         }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        unlockWithBiometric();
     }
 }

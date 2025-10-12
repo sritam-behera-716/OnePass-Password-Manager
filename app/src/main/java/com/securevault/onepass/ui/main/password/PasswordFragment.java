@@ -16,6 +16,7 @@ import com.securevault.onepass.data.DatabaseHelper;
 import com.securevault.onepass.data.PasswordItem;
 import com.securevault.onepass.databinding.FragmentPasswordBinding;
 import com.securevault.onepass.utils.EditTextHelper;
+import com.securevault.onepass.utils.SecureEncryptionHelper;
 
 import java.time.LocalDate;
 import java.util.Objects;
@@ -61,7 +62,10 @@ public class PasswordFragment extends Fragment {
         name = name.substring(0, 1).toUpperCase() + name.substring(1);
 
         DatabaseHelper databaseHelper = DatabaseHelper.getInstance(requireContext());
-        databaseHelper.passwordDao().insertRecord(new PasswordItem(name, url, username, password, date));
+        SecureEncryptionHelper secureEncryptionHelper = new SecureEncryptionHelper(requireContext());
+        String encryptedPassword = secureEncryptionHelper.encrypt(password);
+
+        databaseHelper.passwordDao().insertRecord(new PasswordItem(name, url, username, encryptedPassword, password.length(), date));
         Toast.makeText(requireContext(), "Password added successfully!", Toast.LENGTH_SHORT).show();
     }
 

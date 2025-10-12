@@ -114,7 +114,7 @@ public class HomeFragment extends Fragment {
             intent.putExtra("created_date", item.getCreatedDate().toString());
             intent.putExtra("url", item.getUrl());
             intent.putExtra("username", item.getUsername());
-            intent.putExtra("encrypted_password", item.getEncryptedPassword());
+            intent.putExtra("password_length", item.getPasswordLength());
             detailsLauncher.launch(intent);
         });
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -142,6 +142,4 @@ public class HomeFragment extends Fragment {
         super.onDestroyView();
         binding = null;
     }
-
-
 }

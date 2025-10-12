@@ -17,11 +17,16 @@ public class BiometricHelper {
     private final Context context;
     private final BiometricManager biometricManager;
     private BiometricPrompt biometricPrompt;
+    private BiometricCallback biometricCallback;
 
     public BiometricHelper(Context context) {
         this.context = context;
         this.biometricManager = BiometricManager.from(context);
         initializeBiometricPrompt();
+    }
+
+    public void setBiometricCallback(BiometricCallback callback) {
+        this.biometricCallback = callback;
     }
 
     private void initializeBiometricPrompt() {
@@ -31,16 +36,25 @@ public class BiometricHelper {
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
                 showBiometricUnlockDialog();
+                if (biometricCallback != null) {
+                    biometricCallback.onFailed();
+                }
             }
 
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
+                if (biometricCallback != null) {
+                    biometricCallback.onSuccess();
+                }
             }
 
             @Override
             public void onAuthenticationFailed() {
                 super.onAuthenticationFailed();
+                if (biometricCallback != null) {
+                    biometricCallback.onFailed();
+                }
             }
         });
     }
@@ -59,6 +73,9 @@ public class BiometricHelper {
                 break;
             default:
                 showBiometricUnlockDialog();
+                if (biometricCallback != null) {
+                    biometricCallback.onFailed();
+                }
                 break;
         }
     }
@@ -92,9 +109,15 @@ public class BiometricHelper {
         dialog.setContentView(R.layout.biometric_dialog);
         dialog.setCancelable(false);
         dialog.findViewById(R.id.unlock).setOnClickListener(v -> {
-            checkAndShowBiometricPrompt();
             dialog.dismiss();
+            checkAndShowBiometricPrompt();
         });
         dialog.show();
+    }
+
+    public interface BiometricCallback {
+        void onSuccess();
+
+        void onFailed();
     }
 }

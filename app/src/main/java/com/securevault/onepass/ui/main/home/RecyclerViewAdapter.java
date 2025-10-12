@@ -17,7 +17,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.securevault.onepass.R;
 import com.securevault.onepass.data.PasswordItem;
+import com.securevault.onepass.utils.BiometricHelper;
 import com.securevault.onepass.utils.ClipboardHelper;
+import com.securevault.onepass.utils.SecureEncryptionHelper;
 
 import java.util.ArrayList;
 
@@ -48,23 +50,26 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ViewHolder holder, @SuppressLint("RecyclerView") int position) {
         PasswordItem passwordItem = passwordItemList.get(position);
 
         holder.passwordFont.setText(String.valueOf(passwordItem.getPasswordName().charAt(0)));
         holder.passwordName.setText(passwordItem.getPasswordName());
 
         holder.copyIcon.setOnClickListener(v -> {
-            holder.copyIcon.setEnabled(false);
+            final BiometricHelper biometricHelper = new BiometricHelper(context);
+            biometricHelper.setBiometricCallback(new BiometricHelper.BiometricCallback() {
+                @Override
+                public void onSuccess() {
+                    copyPassword(holder, passwordItem.getEncryptedPassword());
+                }
 
-            holder.rootView.setBackgroundResource(R.drawable.item_background_copied);
-            holder.passwordFont.setBackgroundResource(R.drawable.password_background_copied);
-            holder.passwordFont.setTextColor(context.getColor(R.color.default_color));
-            holder.passwordName.setText(R.string.copied);
-            holder.passwordName.setTextColor(context.getColor(R.color.white));
+                @Override
+                public void onFailed() {
 
-            ClipboardHelper.copyToClipboard(context, passwordItem.getPasswordName());
-            Toast.makeText(context, "Copied!", Toast.LENGTH_SHORT).show();
+                }
+            });
+            biometricHelper.checkAndShowBiometricPrompt();
         });
 
         holder.rootView.setOnClickListener(v -> listener.onItemClick(passwordItem));
@@ -82,6 +87,22 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerViewAdapte
             itemView.setAnimation(slideInLeft);
             lastPosition = position;
         }
+    }
+
+    private void copyPassword(ViewHolder holder, String password) {
+        holder.copyIcon.setEnabled(false);
+
+        holder.rootView.setBackgroundResource(R.drawable.item_background_copied);
+        holder.passwordFont.setBackgroundResource(R.drawable.password_background_copied);
+        holder.passwordFont.setTextColor(context.getColor(R.color.default_color));
+        holder.passwordName.setText(R.string.copied);
+        holder.passwordName.setTextColor(context.getColor(R.color.white));
+
+        SecureEncryptionHelper secureEncryptionHelper = new SecureEncryptionHelper(context);
+        String decryptedPassword = secureEncryptionHelper.decrypt(password);
+
+        ClipboardHelper.copyToClipboard(context, decryptedPassword);
+        Toast.makeText(context, "Copied!", Toast.LENGTH_SHORT).show();
     }
 
     public interface OnItemClickListener {

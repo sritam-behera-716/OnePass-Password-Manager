@@ -18,6 +18,7 @@ import com.securevault.onepass.data.PasswordItem;
 import com.securevault.onepass.databinding.ActivityUpdateBinding;
 import com.securevault.onepass.ui.main.password.GeneratePasswordActivity;
 import com.securevault.onepass.utils.EditTextHelper;
+import com.securevault.onepass.utils.SecureEncryptionHelper;
 
 import java.time.LocalDate;
 import java.util.Objects;
@@ -87,7 +88,11 @@ public class UpdateActivity extends AppCompatActivity {
 
         if (!(updatedTitle.equalsIgnoreCase(title) && updatedLink.equalsIgnoreCase(link) && updatedUsername.equalsIgnoreCase(username) && updatedPassword.equalsIgnoreCase(password))) {
             DatabaseHelper databaseHelper = DatabaseHelper.getInstance(this);
-            databaseHelper.passwordDao().updateRecord(new PasswordItem(id, updatedTitle, updatedLink, updatedUsername, updatedPassword, LocalDate.parse(date)));
+
+            SecureEncryptionHelper secureEncryptionHelper = new SecureEncryptionHelper(this);
+            String encryptedPassword = secureEncryptionHelper.encrypt(updatedPassword);
+
+            databaseHelper.passwordDao().updateRecord(new PasswordItem(id, updatedTitle, updatedLink, updatedUsername, encryptedPassword, updatedPassword.length(), LocalDate.parse(date)));
             setResult(Activity.RESULT_OK);
         }
 

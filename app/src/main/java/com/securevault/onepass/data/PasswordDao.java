@@ -15,6 +15,9 @@ public interface PasswordDao {
     @Query("SELECT * FROM passwords WHERE id = :id")
     PasswordItem retrieveRecordById(int id);
 
+    @Query("SELECT encrypted_password FROM passwords WHERE id = :id")
+    String retrievePasswordById(int id);
+
     @Insert
     void insertRecord(PasswordItem passwordItem);
 
